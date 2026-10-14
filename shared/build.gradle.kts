@@ -52,6 +52,7 @@ graalvmNative {
 tasks {
     jar {
         enabled = true
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
         manifest {
             attributes("Main-Class" to "at.typewriter.bot.MainKt")
         }
@@ -61,6 +62,7 @@ tasks {
         archiveClassifier.set("")
         archiveBaseName.set("typewriter-bot")
         mergeServiceFiles()
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
         manifest {
             attributes("Main-Class" to "at.typewriter.bot.MainKt")
         }
@@ -71,6 +73,10 @@ tasks {
             jvmTarget = "21"
             freeCompilerArgs = listOf("-opt-in=kotlin.RequiresOptIn")
         }
+    }
+
+    processResources {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     }
 }
 
