@@ -361,8 +361,8 @@ jobs:
         run: |
           ls shared/build/jpackage/
           ls gui/build/jpackage/
-          ./shared/build/jpackage/typewriter-bot.exe --help 2>&1 | head -5 || true
-          ./gui/build/jpackage/typewriter-bot-gui.exe --help 2>&1 | head -5 || true
+          .\shared\build\jpackage\typewriter-bot.exe --help 2>&1 | head -5 || true
+          .\gui\build\jpackage\typewriter-bot-gui.exe --help 2>&1 | head -5 || true
         shell: pwsh
 
       - name: Upload Windows installers
