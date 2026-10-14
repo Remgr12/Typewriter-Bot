@@ -42,7 +42,13 @@ graalvmNative {
         all {
             imageName.set("typewriter-bot")
             buildArgs.addAll(
-                "--no-fallback"
+                "--initialize-at-build-time=org.slf4j,ch.qos.logback",
+                "--initialize-at-run-time=kotlin,org.openqa.selenium,io.github.bonigarcia",
+                "--report-unsupported-elements-at-runtime",
+                "-H:+ReportExceptionStackTraces",
+                "--enable-monitoring=heapdump,jfr",
+                "--no-fallback",
+                "--link-at-build-time=kotlin"
             )
             systemProperties.put("webdriver.chrome.driver", "")
         }

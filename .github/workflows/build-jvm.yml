@@ -2,10 +2,10 @@ name: Build JVM Artifacts
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, native-fix-experiment]
     tags: ['v*']
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, native-fix-experiment]
   workflow_dispatch:
 
 env:
@@ -102,4 +102,4 @@ jobs:
         with:
           files: |
             artifacts/typewriter-bot-1.0.0.jar
-        generate_release_notes: true
+          generate_release_notes: true

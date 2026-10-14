@@ -1,164 +1,424 @@
-name: Build Native (Linux/macOS)
+name: Build Native Installers (jpackage)
 
 on:
   push:
-    branches: [main]
+    branches: [main, native-fix-experiment]
     tags: ['v*']
   pull_request:
-    branches: [main]
+    branches: [main, native-fix-experiment]
   workflow_dispatch:
 
 env:
-  GRAALVM_VERSION: 'latest'
   JAVA_VERSION: '21'
+  GRADLE_VERSION: '8.8'
 
 jobs:
-  build-linux-native:
-    name: Build Linux Native
+  build-linux-installers:
+    name: Build Linux Installers (jpackage)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup GraalVM
-        uses: graalvm/setup-graalvm@v1
+      - name: Setup JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
         with:
-          version: ${{ env.GRAALVM_VERSION }}
+          distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
-          components: 'native-image'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install native-image dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y zlib1g-dev libfreetype6-dev
+          cache: 'gradle'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: '8.8'
+          gradle-version: ${{ env.GRADLE_VERSION }}
 
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Build native image (CLI)
-        run: ./gradlew :shared:nativeCompile --no-daemon
+      - name: Build JARs
+        run: ./gradlew :shared:shadowJar :gui:shadowJar --no-daemon
 
-      - name: Build native image (GUI)
-        run: ./gradlew :gui:nativeCompile --no-daemon
-
-      - name: Verify native executables
+      - name: Install jpackage dependencies (Linux)
         run: |
-          ls -la shared/build/native/nativeCompile/
-          ls -la gui/build/native/nativeCompile/
-          ./shared/build/native/nativeCompile/typewriter-bot --help 2>&1 | head -5 || true
-          ./gui/build/native/nativeCompile/typewriter-bot-gui --help 2>&1 | head -5 || true
+          sudo apt-get update
+          sudo apt-get install -y fakeroot rpm
 
-      - name: Upload CLI native
+      - name: Create CLI installer (Linux)
+        run: |
+          jpackage \
+            --type deb \
+            --input shared/build/libs \
+            --main-jar typewriter-bot-1.0.0.jar \
+            --main-class at.typewriter.bot.MainKt \
+            --name typewriter-bot \
+            --app-version 1.0.0 \
+            --description "Typewriter Bot CLI" \
+            --linux-shortcut \
+            --linux-menu-group "Education" \
+            --dest shared/build/jpackage
+
+      - name: Create GUI installer (Linux)
+        run: |
+          jpackage \
+            --type deb \
+            --input gui/build/libs \
+            --main-jar typewriter-bot-gui-1.0.0.jar \
+            --main-class at.typewriter.bot.gui.MainKt \
+            --name typewriter-bot-gui \
+            --app-version 1.0.0 \
+            --description "Typewriter Bot GUI" \
+            --linux-shortcut \
+            --linux-menu-group "Education" \
+            --dest gui/build/jpackage
+
+      - name: Create RPM packages (Linux)
+        run: |
+          jpackage \
+            --type rpm \
+            --input shared/build/libs \
+            --main-jar typewriter-bot-1.0.0.jar \
+            --main-class at.typewriter.bot.MainKt \
+            --name typewriter-bot \
+            --app-version 1.0.0 \
+            --description "Typewriter Bot CLI" \
+            --linux-shortcut \
+            --linux-menu-group "Education" \
+            --dest shared/build/jpackage
+
+          jpackage \
+            --type rpm \
+            --input gui/build/libs \
+            --main-jar typewriter-bot-gui-1.0.0.jar \
+            --main-class at.typewriter.bot.gui.MainKt \
+            --name typewriter-bot-gui \
+            --app-version 1.0.0 \
+            --description "Typewriter Bot GUI" \
+            --linux-shortcut \
+            --linux-menu-group "Education" \
+            --dest gui/build/jpackage
+
+      - name: Create AppImage (Linux)
+        run: |
+          jpackage \
+            --type app-image \
+            --input shared/build/libs \
+            --main-jar typewriter-bot-1.0.0.jar \
+            --main-class at.typewriter.bot.MainKt \
+            --name typewriter-bot \
+            --app-version 1.0.0 \
+            --description "Typewriter Bot CLI" \
+            --dest shared/build/jpackage
+
+          jpackage \
+            --type app-image \
+            --input gui/build/libs \
+            --main-jar typewriter-bot-gui-1.0.0.jar \
+            --main-class at.typewriter.bot.gui.MainKt \
+            --name typewriter-bot-gui \
+            --app-version 1.0.0 \
+            --description "Typewriter Bot GUI" \
+            --dest gui/build/jpackage
+
+      - name: Verify Linux installers
+        run: |
+          ls -la shared/build/jpackage/
+          ls -la gui/build/jpackage/
+          ./shared/build/jpackage/typewriter-bot/bin/typewriter-bot --help 2>&1 | head -5 || true
+          ./gui/build/jpackage/typewriter-bot-gui/bin/typewriter-bot-gui --help 2>&1 | head -5 || true
+
+      - name: Upload Linux installers
         uses: actions/upload-artifact@v4
         with:
-          name: typewriter-bot-linux-native-cli
-          path: shared/build/native/nativeCompile/typewriter-bot
+          name: typewriter-bot-linux-installers
+          path: |
+            shared/build/jpackage/*.deb
+            shared/build/jpackage/*.rpm
+            shared/build/jpackage/typewriter-bot
+            gui/build/jpackage/*.deb
+            gui/build/jpackage/*.rpm
+            gui/build/jpackage/typewriter-bot-gui
           retention-days: 30
 
-      - name: Upload GUI native
-        uses: actions/upload-artifact@v4
-        with:
-          name: typewriter-bot-linux-native-gui
-          path: gui/build/native/nativeCompile/typewriter-bot-gui
-          retention-days: 30
-
-  build-macos-native:
-    name: Build macOS Native
+  build-macos-installers:
+    name: Build macOS Installers (jpackage)
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup GraalVM
-        uses: graalvm/setup-graalvm@v1
+      - name: Setup JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
         with:
-          version: ${{ env.GRAALVM_VERSION }}
+          distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
-          components: 'native-image'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: 'gradle'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: '8.8'
+          gradle-version: ${{ env.GRADLE_VERSION }}
 
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Build native image (CLI)
-        run: ./gradlew :shared:nativeCompile --no-daemon
+      - name: Build JARs
+        run: ./gradlew :shared:shadowJar :gui:shadowJar --no-daemon
 
-      - name: Build native image (GUI)
-        run: ./gradlew :gui:nativeCompile --no-daemon
-
-      - name: Verify native executables
+      - name: Create CLI installer (macOS)
         run: |
-          ls -la shared/build/native/nativeCompile/
-          ls -la gui/build/native/nativeCompile/
-          ./shared/build/native/nativeCompile/typewriter-bot --help 2>&1 | head -5 || true
-          ./gui/build/native/nativeCompile/typewriter-bot-gui --help 2>&1 | head -5 || true
+          jpackage \
+            --type dmg \
+            --input shared/build/libs \
+            --main-jar typewriter-bot-1.0.0.jar \
+            --main-class at.typewriter.bot.MainKt \
+            --name typewriter-bot \
+            --app-version 1.0.0 \
+            --description "Typewriter Bot CLI" \
+            --mac-package-name "Typewriter Bot" \
+            --dest shared/build/jpackage
 
-      - name: Upload CLI native
+          jpackage \
+            --type pkg \
+            --input shared/build/libs \
+            --main-jar typewriter-bot-1.0.0.jar \
+            --main-class at.typewriter.bot.MainKt \
+            --name typewriter-bot \
+            --app-version 1.0.0 \
+            --description "Typewriter Bot CLI" \
+            --mac-package-name "Typewriter Bot" \
+            --dest shared/build/jpackage
+
+      - name: Create GUI installer (macOS)
+        run: |
+          jpackage \
+            --type dmg \
+            --input gui/build/libs \
+            --main-jar typewriter-bot-gui-1.0.0.jar \
+            --main-class at.typewriter.bot.gui.MainKt \
+            --name typewriter-bot-gui \
+            --app-version 1.0.0 \
+            --description "Typewriter Bot GUI" \
+            --mac-package-name "Typewriter Bot GUI" \
+            --dest gui/build/jpackage
+
+          jpackage \
+            --type pkg \
+            --input gui/build/libs \
+            --main-jar typewriter-bot-gui-1.0.0.jar \
+            --main-class at.typewriter.bot.gui.MainKt \
+            --name typewriter-bot-gui \
+            --app-version 1.0.0 \
+            --description "Typewriter Bot GUI" \
+            --mac-package-name "Typewriter Bot GUI" \
+            --dest gui/build/jpackage
+
+      - name: Create macOS AppImage
+        run: |
+          jpackage \
+            --type app-image \
+            --input shared/build/libs \
+            --main-jar typewriter-bot-1.0.0.jar \
+            --main-class at.typewriter.bot.MainKt \
+            --name typewriter-bot \
+            --app-version 1.0.0 \
+            --description "Typewriter Bot CLI" \
+            --dest shared/build/jpackage
+
+          jpackage \
+            --type app-image \
+            --input gui/build/libs \
+            --main-jar typewriter-bot-gui-1.0.0.jar \
+            --main-class at.typewriter.bot.gui.MainKt \
+            --name typewriter-bot-gui \
+            --app-version 1.0.0 \
+            --description "Typewriter Bot GUI" \
+            --dest gui/build/jpackage
+
+      - name: Verify macOS installers
+        run: |
+          ls -la shared/build/jpackage/
+          ls -la gui/build/jpackage/
+          ./shared/build/jpackage/typewriter-bot.app/Contents/MacOS/typewriter-bot --help 2>&1 | head -5 || true
+          ./gui/build/jpackage/typewriter-bot-gui.app/Contents/MacOS/typewriter-bot-gui --help 2>&1 | head -5 || true
+
+      - name: Upload macOS installers
         uses: actions/upload-artifact@v4
         with:
-          name: typewriter-bot-macos-native-cli
-          path: shared/build/native/nativeCompile/typewriter-bot
+          name: typewriter-bot-macos-installers
+          path: |
+            shared/build/jpackage/*.dmg
+            shared/build/jpackage/*.pkg
+            shared/build/jpackage/typewriter-bot.app
+            gui/build/jpackage/*.dmg
+            gui/build/jpackage/*.pkg
+            gui/build/jpackage/typewriter-bot-gui.app
           retention-days: 30
 
-      - name: Upload GUI native
+  build-windows-installers:
+    name: Build Windows Installers (jpackage)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: ${{ env.GRADLE_VERSION }}
+
+      - name: Build JARs
+        run: ./gradlew :shared:shadowJar :gui:shadowJar --no-daemon
+        shell: bash
+
+      - name: Install WiX Toolset (for MSI)
+        run: choco install wixtoolset -y
+        shell: pwsh
+
+      - name: Create CLI installer (Windows)
+        run: |
+          jpackage `
+            --type exe `
+            --input shared/build/libs `
+            --main-jar typewriter-bot-1.0.0.jar `
+            --main-class at.typewriter.bot.MainKt `
+            --name typewriter-bot `
+            --app-version 1.0.0 `
+            --description "Typewriter Bot CLI" `
+            --win-shortcut `
+            --win-menu-group "Typewriter Bot" `
+            --dest shared/build/jpackage
+
+          jpackage `
+            --type msi `
+            --input shared/build/libs `
+            --main-jar typewriter-bot-1.0.0.jar `
+            --main-class at.typewriter.bot.MainKt `
+            --name typewriter-bot `
+            --app-version 1.0.0 `
+            --description "Typewriter Bot CLI" `
+            --dest shared/build/jpackage
+        shell: pwsh
+
+      - name: Create GUI installer (Windows)
+        run: |
+          jpackage `
+            --type exe `
+            --input gui/build/libs `
+            --main-jar typewriter-bot-gui-1.0.0.jar `
+            --main-class at.typewriter.bot.gui.MainKt `
+            --name typewriter-bot-gui `
+            --app-version 1.0.0 `
+            --description "Typewriter Bot GUI" `
+            --win-shortcut `
+            --win-menu-group "Typewriter Bot" `
+            --dest gui/build/jpackage
+
+          jpackage `
+            --type msi `
+            --input gui/build/libs `
+            --main-jar typewriter-bot-gui-1.0.0.jar `
+            --main-class at.typewriter.bot.gui.MainKt `
+            --name typewriter-bot-gui `
+            --app-version 1.0.0 `
+            --description "Typewriter Bot GUI" `
+            --dest gui/build/jpackage
+        shell: pwsh
+
+      - name: Create Windows AppImage
+        run: |
+          jpackage `
+            --type app-image `
+            --input shared/build/libs `
+            --main-jar typewriter-bot-1.0.0.jar `
+            --main-class at.typewriter.bot.MainKt `
+            --name typewriter-bot `
+            --app-version 1.0.0 `
+            --description "Typewriter Bot CLI" `
+            --dest shared/build/jpackage
+
+          jpackage `
+            --type app-image `
+            --input gui/build/libs `
+            --main-jar typewriter-bot-gui-1.0.0.jar `
+            --main-class at.typewriter.bot.gui.MainKt `
+            --name typewriter-bot-gui `
+            --app-version 1.0.0 `
+            --description "Typewriter Bot GUI" `
+            --dest gui/build/jpackage
+        shell: pwsh
+
+      - name: Verify Windows installers
+        run: |
+          ls shared/build/jpackage/
+          ls gui/build/jpackage/
+          .\shared\build\jpackage\typewriter-bot.exe --help 2>&1 | head -5 || true
+          .\gui\build\jpackage\typewriter-bot-gui.exe --help 2>&1 | head -5 || true
+        shell: pwsh
+
+      - name: Upload Windows installers
         uses: actions/upload-artifact@v4
         with:
-          name: typewriter-bot-macos-native-gui
-          path: gui/build/native/nativeCompile/typewriter-bot-gui
+          name: typewriter-bot-windows-installers
+          path: |
+            shared/build/jpackage/*.exe
+            shared/build/jpackage/*.msi
+            shared/build/jpackage/typewriter-bot
+            gui/build/jpackage/*.exe
+            gui/build/jpackage/*.msi
+            gui/build/jpackage/typewriter-bot-gui
           retention-days: 30
 
-  release-native:
-    name: Release Native (Linux/macOS)
-    needs: [build-linux-native, build-macos-native]
+  release-installers:
+    name: Release Installers
+    needs: [build-linux-installers, build-macos-installers, build-windows-installers]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Download Linux CLI
+      - name: Download Linux installers
         uses: actions/download-artifact@v4
         with:
-          name: typewriter-bot-linux-native-cli
+          name: typewriter-bot-linux-installers
           path: artifacts/linux
 
-      - name: Download Linux GUI
+      - name: Download macOS installers
         uses: actions/download-artifact@v4
         with:
-          name: typewriter-bot-linux-native-gui
-          path: artifacts/linux
-
-      - name: Download macOS CLI
-        uses: actions/download-artifact@v4
-        with:
-          name: typewriter-bot-macos-native-cli
+          name: typewriter-bot-macos-installers
           path: artifacts/macos
 
-      - name: Download macOS GUI
+      - name: Download Windows installers
         uses: actions/download-artifact@v4
         with:
-          name: typewriter-bot-macos-native-gui
-          path: artifacts/macos
+          name: typewriter-bot-windows-installers
+          path: artifacts/windows
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
+            artifacts/linux/*.deb
+            artifacts/linux/*.rpm
             artifacts/linux/typewriter-bot
             artifacts/linux/typewriter-bot-gui
-            artifacts/macos/typewriter-bot
-            artifacts/macos/typewriter-bot-gui
+            artifacts/macos/*.dmg
+            artifacts/macos/*.pkg
+            artifacts/macos/typewriter-bot.app
+            artifacts/macos/typewriter-bot-gui.app
+            artifacts/windows/*.exe
+            artifacts/windows/*.msi
+            artifacts/windows/typewriter-bot.exe
+            artifacts/windows/typewriter-bot-gui.exe
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
