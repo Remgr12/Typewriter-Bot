@@ -1,0 +1,18 @@
+{
+  "domain": "edu.typewriter.at",
+  "username": "your_username_here",
+  "password": "your_password_here",
+  "typingSpeedWpm": 60,
+  "errorRate": 0.02,
+  "minDelayMs": 50,
+  "maxDelayMs": 200,
+  "headless": true,
+  "lessonIds": [1, 2, 3],
+  "autoStart": false,
+  "pauseBetweenLessonsMs": 2000,
+  "humanLikeBehavior": true,
+  "randomizeSpeed": true,
+  "randomizeErrors": true,
+  "maxRetries": 3,
+  "timeoutSeconds": 30
+}

@@ -1,0 +1,34 @@
+app-id: at.typewriter.Bot
+runtime: org.freedesktop.Platform
+runtime-version: '23.08'
+sdk: org.freedesktop.Sdk
+command: typewriter-bot
+finish-args:
+  - --share=network
+  - --socket=x11
+  - --socket=wayland
+  - --device=dri
+  - --filesystem=home
+  - --env=JAVA_HOME=/app/jre
+modules:
+  - name: openjdk
+    buildsystem: simple
+    build-commands:
+      - cp -r /usr/lib/jvm/openjdk-21 /app/jre
+    sources:
+      - type: file
+        path: /usr/lib/jvm/openjdk-21
+        dest: jre
+  - name: typewriter-bot
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 typewriter-bot-1.0.0.jar /app/bin/typewriter-bot.jar
+      - cat > /app/bin/typewriter-bot << 'SCRIPT'
+#!/bin/sh
+exec /app/jre/bin/java -jar /app/bin/typewriter-bot.jar "$@"
+SCRIPT
+      - chmod +x /app/bin/typewriter-bot
+    sources:
+      - type: file
+        path: ../../shared/build/libs/typewriter-bot-1.0.0.jar
+        dest: typewriter-bot-1.0.0.jar

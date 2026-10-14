@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <rect width="256" height="256" rx="32" fill="#1976D2"/>
+  <text x="128" y="170" font-family="Arial, sans-serif" font-size="120" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="middle">⌨</text>
+  <circle cx="190" cy="70" r="30" fill="#FFC107"/>
+  <text x="190" y="82" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#1976D2" text-anchor="middle" dominant-baseline="middle">AT</text>
+</svg>

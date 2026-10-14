@@ -1,0 +1,101 @@
+name: Build Windows Native EXE
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  GRAALVM_VERSION: '21.0.3'
+  JAVA_VERSION: '21'
+
+jobs:
+  build-windows-native:
+    name: Build Windows Native EXE
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup GraalVM
+        uses: graalvm/setup-graalvm@v1
+        with:
+          version: ${{ env.GRAALVM_VERSION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          components: 'native-image'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.8'
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+        shell: bash
+
+      - name: Build native image (CLI)
+        run: |
+          ./gradlew :shared:nativeCompile --no-daemon
+        shell: bash
+
+      - name: Build native image (GUI)
+        run: |
+          ./gradlew :gui:nativeCompile --no-daemon
+        shell: bash
+
+      - name: Verify native executables
+        run: |
+          ls -la shared/build/native/nativeCompile/
+          ls -la gui/build/native/nativeCompile/
+          ./shared/build/native/nativeCompile/typewriter-bot.exe --help 2>&1 | head -5 || true
+          ./gui/build/native/nativeCompile/typewriter-bot-gui.exe --help 2>&1 | head -5 || true
+        shell: bash
+
+      - name: Upload CLI native executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: typewriter-bot-windows-native-cli
+          path: shared/build/native/nativeCompile/typewriter-bot.exe
+          retention-days: 30
+
+      - name: Upload GUI native executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: typewriter-bot-windows-native-gui
+          path: gui/build/native/nativeCompile/typewriter-bot-gui.exe
+          retention-days: 30
+
+  release-native:
+    name: Release Native Windows
+    needs: build-windows-native
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download CLI native
+        uses: actions/download-artifact@v4
+        with:
+          name: typewriter-bot-windows-native-cli
+          path: artifacts
+
+      - name: Download GUI native
+        uses: actions/download-artifact@v4
+        with:
+          name: typewriter-bot-windows-native-gui
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/typewriter-bot.exe
+            artifacts/typewriter-bot-gui.exe
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true

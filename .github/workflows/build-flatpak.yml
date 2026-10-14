@@ -1,0 +1,194 @@
+name: Build Linux Flatpak
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  JAVA_VERSION: '21'
+  FLATPAK_BUILDER_VERSION: '1.2.2'
+
+jobs:
+  build-flatpak:
+    name: Build Flatpak
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.8'
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Build JVM JARs
+        run: ./gradlew :shared:shadowJar :gui:shadowJar --no-daemon
+
+      - name: Install flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak-builder
+
+      - name: Install Flatpak SDK and runtime
+        run: |
+          flatpak install --user --noninteractive flathub org.freedesktop.Sdk//23.08 org.freedesktop.Platform//23.08
+          flatpak install --user --noninteractive flathub org.freedesktop.Sdk.Extension.openjdk21//23.08
+
+      - name: Create Flatpak manifest (CLI)
+        run: |
+          mkdir -p flatpak/cli
+          cat > flatpak/cli/at.typewriter.Bot.yml << 'EOF'
+          app-id: at.typewriter.Bot
+          runtime: org.freedesktop.Platform
+          runtime-version: '23.08'
+          sdk: org.freedesktop.Sdk
+          command: typewriter-bot
+          finish-args:
+            - --share=network
+            - --socket=x11
+            - --socket=wayland
+            - --device=dri
+            - --filesystem=home
+            - --env=JAVA_HOME=/app/jre
+          modules:
+            - name: openjdk
+              buildsystem: simple
+              build-commands:
+                - cp -r /usr/lib/jvm/openjdk-21 /app/jre
+              sources:
+                - type: file
+                  path: /usr/lib/jvm/openjdk-21
+                  dest: jre
+            - name: typewriter-bot
+              buildsystem: simple
+              build-commands:
+                - install -Dm755 typewriter-bot-1.0.0.jar /app/bin/typewriter-bot.jar
+                - cat > /app/bin/typewriter-bot << 'SCRIPT'
+                #!/bin/sh
+                exec /app/jre/bin/java -jar /app/bin/typewriter-bot.jar "$@"
+                SCRIPT
+                - chmod +x /app/bin/typewriter-bot
+              sources:
+                - type: file
+                  path: ../../shared/build/libs/typewriter-bot-1.0.0.jar
+                  dest: typewriter-bot-1.0.0.jar
+          EOF
+
+      - name: Create Flatpak manifest (GUI)
+        run: |
+          mkdir -p flatpak/gui
+          cat > flatpak/gui/at.typewriter.Bot.GUI.yml << 'EOF'
+          app-id: at.typewriter.Bot.GUI
+          runtime: org.freedesktop.Platform
+          runtime-version: '23.08'
+          sdk: org.freedesktop.Sdk
+          command: typewriter-bot-gui
+          finish-args:
+            - --share=network
+            - --socket=x11
+            - --socket=wayland
+            - --device=dri
+            - --filesystem=home
+            - --env=JAVA_HOME=/app/jre
+          modules:
+            - name: openjdk
+              buildsystem: simple
+              build-commands:
+                - cp -r /usr/lib/jvm/openjdk-21 /app/jre
+              sources:
+                - type: file
+                  path: /usr/lib/jvm/openjdk-21
+                  dest: jre
+            - name: typewriter-bot-gui
+              buildsystem: simple
+              build-commands:
+                - install -Dm755 typewriter-bot-gui-1.0.0.jar /app/bin/typewriter-bot-gui.jar
+                - cat > /app/bin/typewriter-bot-gui << 'SCRIPT'
+                #!/bin/sh
+                exec /app/jre/bin/java -jar /app/bin/typewriter-bot-gui.jar "$@"
+                SCRIPT
+                - chmod +x /app/bin/typewriter-bot-gui
+              sources:
+                - type: file
+                  path: ../../gui/build/libs/typewriter-bot-gui-1.0.0.jar
+                  dest: typewriter-bot-gui-1.0.0.jar
+          EOF
+
+      - name: Build Flatpak (CLI)
+        run: |
+          cd flatpak/cli
+          flatpak-builder --user --install --force-clean build-dir at.typewriter.Bot.yml
+
+      - name: Build Flatpak (GUI)
+        run: |
+          cd flatpak/gui
+          flatpak-builder --user --install --force-clean build-dir at.typewriter.Bot.GUI.yml
+
+      - name: Create Flatpak bundle (CLI)
+        run: |
+          flatpak build-bundle --user repo-cli typewriter-bot.flatpak at.typewriter.Bot
+          ls -la typewriter-bot.flatpak
+
+      - name: Create Flatpak bundle (GUI)
+        run: |
+          flatpak build-bundle --user repo-gui typewriter-bot-gui.flatpak at.typewriter.Bot.GUI
+          ls -la typewriter-bot-gui.flatpak
+
+      - name: Upload Flatpak (CLI)
+        uses: actions/upload-artifact@v4
+        with:
+          name: typewriter-bot-linux-flatpak-cli
+          path: flatpak/cli/typewriter-bot.flatpak
+          retention-days: 30
+
+      - name: Upload Flatpak (GUI)
+        uses: actions/upload-artifact@v4
+        with:
+          name: typewriter-bot-linux-flatpak-gui
+          path: flatpak/gui/typewriter-bot-gui.flatpak
+          retention-days: 30
+
+  release-flatpak:
+    name: Release Flatpak
+    needs: build-flatpak
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download CLI Flatpak
+        uses: actions/download-artifact@v4
+        with:
+          name: typewriter-bot-linux-flatpak-cli
+          path: artifacts
+
+      - name: Download GUI Flatpak
+        uses: actions/download-artifact@v4
+        with:
+          name: typewriter-bot-linux-flatpak-gui
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/typewriter-bot.flatpak
+            artifacts/typewriter-bot-gui.flatpak
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
