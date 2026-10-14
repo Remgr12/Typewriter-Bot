@@ -278,7 +278,7 @@ jobs:
 
       - name: Build JARs
         run: ./gradlew :shared:shadowJar :gui:shadowJar --no-daemon
-        shell: pwsh
+        shell: bash
 
       - name: Install WiX Toolset (for MSI)
         run: choco install wixtoolset -y

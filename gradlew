@@ -122,7 +122,7 @@ fi
 
 # For Darwin, add options to specify how the application appears in the dock
 if $darwin; then
-    # Skip dock options when running with GraalVM native image
+    # Skip dock options when running with non-standard JVMs (like GraalVM)
     case "$JAVACMD" in
         *graalvm*) ;;
         *) GRADLE_OPTS="$GRADLE_OPTS \"-Xdock:name=$APP_NAME\" \"-Xdock:icon=$APP_HOME/media/gradle.icns\"" ;;
