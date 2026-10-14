@@ -41,12 +41,11 @@ graalvmNative {
         all {
             imageName.set("typewriter-bot")
             buildArgs.addAll(
-                "--enable-all-security-services",
                 "--initialize-at-build-time=org.slf4j,ch.qos.logback",
-                "--initialize-at-run-time=org.openqa.selenium,io.github.bonigarcia",
+                "--initialize-at-run-time=org.openqa.selenium,io.github.bonigarcia,kotlin.DeprecationLevel,kotlin.KotlinPackage",
                 "--report-unsupported-elements-at-runtime",
                 "-H:+ReportExceptionStackTraces",
-                "-H:+AllowVMInspection",
+                "--enable-monitoring",
                 "--no-fallback"
             )
             systemProperties.put("webdriver.chrome.driver", "")
@@ -55,7 +54,6 @@ graalvmNative {
 }
 
 tasks {
-    // jar is needed for gui module to compile against
     jar {
         enabled = true
         manifest {
