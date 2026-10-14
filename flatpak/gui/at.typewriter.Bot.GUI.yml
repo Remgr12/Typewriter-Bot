@@ -23,12 +23,13 @@ modules:
     buildsystem: simple
     build-commands:
       - install -Dm755 typewriter-bot-gui-1.0.0.jar /app/bin/typewriter-bot-gui.jar
-      - cat > /app/bin/typewriter-bot-gui << 'SCRIPT'
+      - |
+        cat > /app/bin/typewriter-bot-gui << 'SCRIPT'
 #!/bin/sh
 exec /app/jre/bin/java -jar /app/bin/typewriter-bot-gui.jar "$@"
 SCRIPT
       - chmod +x /app/bin/typewriter-bot-gui
     sources:
       - type: file
-        path: ../../gui/build/libs/typewriter-bot-gui-1.0.0.jar
+        path: ../gui/build/libs/typewriter-bot-gui-1.0.0.jar
         dest: typewriter-bot-gui-1.0.0.jar
