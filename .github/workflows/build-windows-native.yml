@@ -2,10 +2,10 @@ name: Build Windows Native EXE
 
 on:
   push:
-    branches: [main]
+    branches: [main, native-fix-experiment]
     tags: ['v*']
   pull_request:
-    branches: [main]
+    branches: [main, native-fix-experiment]
   workflow_dispatch:
 
 env:
