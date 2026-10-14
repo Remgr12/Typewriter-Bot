@@ -13,7 +13,7 @@ A modern, configurable Kotlin bot for the Austrian Typewriter platform (edu.type
 - **Lesson queuing** - Run multiple lessons sequentially
 - **Modern Kotlin** - Coroutines, serialization, type-safe configuration
 - **GUI Application** - Visual configuration and monitoring (Swing)
-- **JVM JARs** - Universal Java archives for all platforms
+- **Native installers** - jpackage-based installers for Linux and Windows
 
 ## Quick Start
 
@@ -88,11 +88,21 @@ Pre-built binaries are available on the [Releases page](https://github.com/Remgr
 
 | Platform | CLI | GUI |
 |----------|-----|-----|
-| Windows | `typewriter-bot-1.0.0.jar` | `typewriter-bot-gui-1.0.0.jar` |
-| Linux | `typewriter-bot-1.0.0.jar` | `typewriter-bot-gui-1.0.0.jar` |
+| Windows | `typewriter-bot-1.0.0.jar` / `.exe` / `.msi` | `typewriter-bot-gui-1.0.0.jar` / `.exe` / `.msi` |
+| Linux | `typewriter-bot-1.0.0.jar` / `.deb` / `.rpm` / `AppImage` | `typewriter-bot-gui-1.0.0.jar` / `.deb` / `.rpm` / `AppImage` |
 | macOS | `typewriter-bot-1.0.0.jar` | `typewriter-bot-gui-1.0.0.jar` |
 
-> **Note**: Native executables (`.exe`, flatpak) are currently experimental. See [Native Build Status](#native-build-status) below.
+### Install via Flatpak (Linux)
+
+```bash
+# CLI version
+flatpak install typewriter-bot.flatpak
+flatpak run at.typewriter.Bot
+
+# GUI version
+flatpak install typewriter-bot-gui.flatpak
+flatpak run at.typewriter.Bot.GUI
+```
 
 ## Configuration Options
 
@@ -133,19 +143,22 @@ The GUI application provides:
 #         gui/build/libs/typewriter-bot-gui-1.0.0.jar
 ```
 
-### Native Executables (Experimental)
+### Native Installers with jpackage (Linux/Windows)
 
-> **⚠️ Known Issue**: Native compilation with GraalVM currently fails due to a Kotlin/GraalVM compatibility issue with `kotlin.DeprecationLevel` class initialization. This is a known limitation in the GraalVM/Kotlin ecosystem.
+Requires JDK 14+ (includes jpackage).
 
 ```bash
-# CLI native (currently failing)
-./gradlew :shared:nativeCompile
+# Build JARs first
+./gradlew shadowJar
 
-# GUI native (currently failing)
-./gradlew :gui:nativeCompile
+# Linux installers (DEB, RPM, AppImage)
+jpackage --type deb --input shared/build/libs --main-jar typewriter-bot-1.0.0.jar --main-class at.typewriter.bot.MainKt --name typewriter-bot --app-version 1.0.0 --description "Typewriter Bot CLI" --linux-shortcut --dest shared/build/jpackage
+
+# Windows installers (EXE, MSI, AppImage) - run on Windows
+jpackage --type exe --input shared/build/libs --main-jar typewriter-bot-1.0.0.jar --main-class at.typewriter.bot.MainKt --name typewriter-bot --app-version 1.0.0 --description "Typewriter Bot CLI" --win-shortcut --dest shared/build/jpackage
 ```
 
-### Flatpak (Linux - Experimental)
+### Flatpak (Linux)
 
 ```bash
 # Build JARs first
@@ -164,17 +177,15 @@ flatpak build-bundle --user repo-cli typewriter-bot.flatpak at.typewriter.Bot
 flatpak build-bundle --user repo-gui typewriter-bot-gui.flatpak at.typewriter.Bot.GUI
 ```
 
-## Native Build Status
+## Native Installer Status
 
-| Platform | Status | Notes |
-|----------|--------|-------|
-| Linux (x86_64) | ❌ Failing | `kotlin.DeprecationLevel` init at build time |
-| macOS (arm64) | ❌ Failing | Same Kotlin/GraalVM compatibility issue |
-| Windows (x86_64) | ❌ Failing | Same Kotlin/GraalVM compatibility issue |
+| Platform | JVM JAR | Native Installers | Flatpak | GUI |
+|----------|---------|-------------------|---------|-----|
+| Windows 10/11 | ✅ | ✅ EXE, MSI, AppImage | ❌ | ✅ |
+| Linux (Ubuntu, Debian, Arch, etc.) | ✅ | ✅ DEB, RPM, AppImage | ✅ | ✅ |
+| macOS (Intel & Apple Silicon) | ✅ | ❌ | ❌ | ✅ |
 
-**Root Cause**: GraalVM's native-image analyzer initializes `kotlin.DeprecationLevel` at build time despite `--initialize-at-run-time=kotlin` configuration. This is a known GraalVM/Kotlin compatibility issue tracked in the GraalVM and Kotlin communities.
-
-**Workaround**: Use the JVM JARs which work perfectly on all platforms with Java 21+.
+**Note**: macOS native installers not available due to GitHub Actions runner limitations. Use JVM JAR on macOS.
 
 ## Project Structure
 
@@ -191,9 +202,8 @@ Typewriter-Bot/
 │       │   └── TypewriterBot.kt  # Core bot logic
 │       ├── jvmMain/kotlin/at/typewriter/bot/
 │       │   └── Main.kt           # CLI entry point
-│       ├── main/resources/META-INF/native-image/...  # GraalVM config
 │       └── commonMain/resources/
-├── gui/                          # GUI application (Swing)
+├── gui/                          # GUI application
 │   ├── build.gradle.kts
 │   └── src/main/kotlin/at/typewriter/bot/gui/
 │       ├── Main.kt               # GUI entry point
@@ -226,11 +236,11 @@ Typewriter-Bot/
 
 ## Supported Platforms
 
-| Platform | JVM JAR | GUI |
-|----------|---------|-----|
-| Windows 10/11 | ✅ | ✅ |
-| Linux (Ubuntu, Debian, Arch, etc.) | ✅ | ✅ |
-| macOS (Intel & Apple Silicon) | ✅ | ✅ |
+| Platform | JVM JAR | Native Installers | GUI |
+|----------|---------|-------------------|-----|
+| Windows 10/11 | ✅ | ✅ | ✅ |
+| Linux (Ubuntu, Debian, Arch, etc.) | ✅ | ✅ | ✅ |
+| macOS (Intel & Apple Silicon) | ✅ | ❌ | ✅ |
 
 ## Requirements
 
@@ -241,7 +251,9 @@ Typewriter-Bot/
 
 Automated builds on every push/tag:
 - **JVM JARs** - Ubuntu, Windows, macOS
-- **Native builds** - Experimental (currently failing due to Kotlin/GraalVM issue)
+- **Linux Installers** - DEB, RPM, AppImage (jpackage)
+- **Windows Installers** - EXE, MSI, AppImage (jpackage)
+- **Linux Flatpak** - Flatpak bundles
 
 Artifacts uploaded as release assets on tagged releases.
 
@@ -268,11 +280,18 @@ Ensure you have a display server (X11/Wayland) and required libraries:
 sudo apt install libx11-6 libxext6 libxrender1 libxtst6 libxi6 libfreetype6
 ```
 
+### Windows jpackage verification
+If you get "term not recognized" errors with jpackage on Windows, use PowerShell:
+```powershell
+.\shared\build\jpackage\typewriter-bot.exe --help
+```
+
 ## Security Notes
 
 - **Never commit `config.json`** - Contains credentials (gitignored)
 - Use `config.local.json` for local overrides
 - Consider using environment variables for production
+- jpackage installers include embedded JRE - no separate JRE needed
 
 ## License
 
@@ -289,4 +308,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## Acknowledgments
 
 - Inspired by [CreatorT/Typewriter-Bot](https://github.com/CreatorT/Typewriter-Bot)
-- Built with Kotlin, Selenium, Swing, Gradle
+- Built with Kotlin, Selenium, Swing, Gradle, and jpackage
