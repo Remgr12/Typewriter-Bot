@@ -54,11 +54,6 @@ jobs:
           flatpak install --user --noninteractive flathub org.freedesktop.Sdk//23.08 org.freedesktop.Platform//23.08
           flatpak install --user --noninteractive flathub org.freedesktop.Sdk.Extension.openjdk21//23.08
 
-      - name: Update Flatpak manifests with correct JAR paths
-        run: |
-          sed -i 's|path: ../../shared/build/libs/typewriter-bot-1.0.0.jar|path: ../shared/build/libs/typewriter-bot-1.0.0.jar|' flatpak/cli/at.typewriter.Bot.yml
-          sed -i 's|path: ../../gui/build/libs/typewriter-bot-gui-1.0.0.jar|path: ../gui/build/libs/typewriter-bot-gui-1.0.0.jar|' flatpak/gui/at.typewriter.Bot.GUI.yml
-
       - name: Build Flatpak (CLI)
         run: |
           cd flatpak/cli

@@ -23,11 +23,8 @@ modules:
     buildsystem: simple
     build-commands:
       - install -Dm755 typewriter-bot-1.0.0.jar /app/bin/typewriter-bot.jar
-      - |
-        cat > /app/bin/typewriter-bot << 'SCRIPT'
-#!/bin/sh
-exec /app/jre/bin/java -jar /app/bin/typewriter-bot.jar "$@"
-SCRIPT
+      - echo '#!/bin/sh' > /app/bin/typewriter-bot
+      - echo 'exec /app/jre/bin/java -jar /app/bin/typewriter-bot.jar "$@"' >> /app/bin/typewriter-bot
       - chmod +x /app/bin/typewriter-bot
     sources:
       - type: file
