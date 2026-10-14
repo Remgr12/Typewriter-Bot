@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 env:
-  GRAALVM_VERSION: '21.0.3'
+  GRAALVM_VERSION: '22.3.3'
   JAVA_VERSION: '21'
 
 jobs:
