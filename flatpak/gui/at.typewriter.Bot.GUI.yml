@@ -14,6 +14,8 @@ modules:
   - name: openjdk
     buildsystem: simple
     build-commands:
+      - mkdir -p /usr/lib/jvm
+      - cp -r $JAVA_HOME /usr/lib/jvm/openjdk-21
       - cp -r /usr/lib/jvm/openjdk-21 /app/jre
     sources:
       - type: file
