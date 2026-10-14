@@ -33,6 +33,7 @@ sourceSets {
         kotlin.srcDir("src/commonMain/kotlin")
         kotlin.srcDir("src/jvmMain/kotlin")
         resources.srcDir("src/commonMain/resources")
+        resources.srcDir("src/main/resources")
     }
 }
 
@@ -41,11 +42,6 @@ graalvmNative {
         all {
             imageName.set("typewriter-bot")
             buildArgs.addAll(
-                "--initialize-at-build-time=org.slf4j,ch.qos.logback",
-                "--initialize-at-run-time=kotlin,org.openqa.selenium,io.github.bonigarcia",
-                "--report-unsupported-elements-at-runtime",
-                "-H:+ReportExceptionStackTraces",
-                "--enable-monitoring=heapdump,jfr",
                 "--no-fallback"
             )
             systemProperties.put("webdriver.chrome.driver", "")
